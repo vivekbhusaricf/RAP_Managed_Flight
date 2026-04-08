@@ -1,15 +1,16 @@
 managed implementation in class zcl_bp_travel_m unique;
-strict;
+//strict;
 
 define behavior for ZI_TERA_TRAVEL_M alias Travel
 implementation in class zcl_bp_travel_m unique
 persistent table ztera_travel_m
 with additional save
 lock master
-authorization master ( instance )
+//authorization master ( instance )
 etag master LastChangedAt
 early numbering
-{  field ( readonly ) TravelId;
+{
+  field ( readonly ) TravelId;
   field ( mandatory ) AgencyId, CustomerId, BeginDate, EndDate, OverallStatus, BookingFee, CurrencyCode;
   action ( features : instance ) acceptTravel result [1] $self;
   action ( features : instance ) rejectTravel result [1] $self;
@@ -49,7 +50,7 @@ define behavior for ZI_TERA_BOOKING_M alias Booking
 implementation in class zcl_bp_booking_m unique
 persistent table ztera_booking_m
 lock dependent by _Travel
-authorization dependent by _Travel
+//authorization dependent by _Travel
 etag master LastChangedAt
 early numbering
 //etag master <field_name>
@@ -82,10 +83,9 @@ define behavior for ZI_TERA_BOOKSUPPL_M alias BookSupp
 implementation in class zcl_bp_booksupp_m unique
 persistent table ztera_booksupp_m
 lock dependent by _Travel
-authorization dependent by _Travel
+//authorization dependent by _Travel
 etag master LastChangedAt
 early numbering
-//etag master <field_name>
 {
   update;
   delete;

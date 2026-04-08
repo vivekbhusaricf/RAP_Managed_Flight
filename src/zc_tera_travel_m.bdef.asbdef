@@ -1,7 +1,8 @@
 projection;
-strict;
+//strict;
 
 define behavior for ZC_TERA_TRAVEL_M //alias <alias_name>
+use etag
 {
   use create;
   use update;
@@ -14,6 +15,7 @@ define behavior for ZC_TERA_TRAVEL_M //alias <alias_name>
 }
 
 define behavior for ZC_TERA_BOOKING_M //alias <alias_name>
+use etag
 {
   use update;
   use delete;
@@ -23,6 +25,7 @@ define behavior for ZC_TERA_BOOKING_M //alias <alias_name>
 }
 
 define behavior for ZC_TERA_BOOKSUPPL_M //alias <alias_name>
+use etag
 {
   use update;
   use delete;

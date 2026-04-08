@@ -1,15 +1,5 @@
-class ZCL_BP_BOOKSUPP_M definition
-  public
-  abstract
-  final
-  create public .
-
-public section.
-protected section.
-private section.
+CLASS zcl_bp_booksupp_m DEFINITION PUBLIC ABSTRACT FINAL FOR BEHAVIOR OF zi_tera_travel_m.
 ENDCLASS.
 
-
-
-CLASS ZCL_BP_BOOKSUPP_M IMPLEMENTATION.
+CLASS zcl_bp_booksupp_m IMPLEMENTATION.
 ENDCLASS.
