@@ -1,0 +1,32 @@
+projection;
+strict;
+
+define behavior for ZC_TERA_TRAVEL_M //alias <alias_name>
+{
+  use create;
+  use update;
+  use delete;
+
+  use action acceptTravel;
+  use action rejectTravel;
+
+  use association _Booking { create; }
+}
+
+define behavior for ZC_TERA_BOOKING_M //alias <alias_name>
+{
+  use update;
+  use delete;
+
+  use association _Travel;
+  use association _Bookingsuppl { create; }
+}
+
+define behavior for ZC_TERA_BOOKSUPPL_M //alias <alias_name>
+{
+  use update;
+  use delete;
+
+  use association _Travel;
+  use association _Booking;
+}

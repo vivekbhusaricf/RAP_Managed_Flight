@@ -1,0 +1,5 @@
+@EndUserText.label: 'Service definition on Consumption view ZC_TERA_APPROVER_M'
+define service ZUI_TERA_APPROVER_M {
+  expose ZC_TERA_APPROVER_M;
+  expose ZC_TERA_BOOKING_APPROVER_M;
+}

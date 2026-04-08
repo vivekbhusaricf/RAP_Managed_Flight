@@ -1,0 +1,6 @@
+@EndUserText.label: 'Service definition on Consumption view ZC_TERA_TRAVEL_M'
+define service ZUI_TERA_TRAVEL_M {
+  expose ZC_TERA_TRAVEL_M;
+  expose ZC_TERA_BOOKING_M;
+  expose ZC_TERA_BOOKSUPPL_M;
+}
