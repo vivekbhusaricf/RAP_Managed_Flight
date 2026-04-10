@@ -10,11 +10,58 @@ CLASS lsc_zi_tera_travel_m IMPLEMENTATION.
 
   METHOD save_modified.
 
-  data: lt_travel type tABLE of ztera_log_trav_m.
-  if create-travel is not initial.
+    DATA: lt_travel_log   TYPE TABLE OF ztera_log_trav_m,
+          lt_travel_log_c TYPE TABLE OF ztera_log_trav_m.
+
+    IF create-travel IS NOT INITIAL.
+      lt_travel_log = CORRESPONDING #( create-travel ).
+
+      LOOP AT lt_travel_log ASSIGNING FIELD-SYMBOL(<fs_travel_log>).
+
+        <fs_travel_log>-changing_operation = 'CREATE'.
+        GET TIME STAMP FIELD <fs_travel_log>-created_at.
+
+        READ TABLE create-travel ASSIGNING FIELD-SYMBOL(<fs_travel>)
+                    WITH TABLE KEY entity COMPONENTS TravelId = <fs_travel_log>-travel_id.
+
+        IF sy-subrc IS INITIAL.
+          IF <fs_travel>-%control-BookingFee = cl_abap_behv=>flag_changed.
+            <fs_travel_log>-changed_field_name = 'Booking Fee'.
+            <fs_travel_log>-changed_value = <fs_travel>-BookingFee.
+            TRY.
+                <fs_travel_log>-change_id = cl_system_uuid=>create_uuid_x16_static(  ).
+              CATCH  cx_uuid_error.
+
+            ENDTRY.
+
+            APPEND <fs_travel_log> TO lt_travel_log_c.
+          ENDIF.
+          IF <fs_travel>-%control-BookingFee = cl_abap_behv=>flag_changed.
+            <fs_travel_log>-changed_field_name = 'OverallStatus'.
+            <fs_travel_log>-changed_value = <fs_travel>-OverallStatus.
+            TRY.
+                <fs_travel_log>-change_id = cl_system_uuid=>create_uuid_x16_static(  ).
+              CATCH  cx_uuid_error.
+            ENDTRY.
+            APPEND <fs_travel_log> TO lt_travel_log_c.
+          ENDIF.
+        ENDIF.
 
 
-  endif.
+
+      ENDLOOP.
+
+      insert ztera_log_trav_m from TABLE lt_travel_log_c.
+
+    ENDIF.
+
+    if update-travel is not initial.
+
+    endif.
+
+    if delete-travel is not initial.
+
+    endif.
 
   ENDMETHOD.
 

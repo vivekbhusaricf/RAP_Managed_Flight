@@ -1,5 +1,5 @@
 projection;
-strict;
+//strict;
 
 define behavior for ZC_TERA_APPROVER_M //alias <alias_name>
 {
