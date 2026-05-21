@@ -11,7 +11,8 @@ CLASS lsc_zi_tera_travel_m IMPLEMENTATION.
   METHOD save_modified.
 
     DATA: lt_travel_log   TYPE TABLE OF ztera_log_trav_m,
-          lt_travel_log_c TYPE TABLE OF ztera_log_trav_m.
+          lt_travel_log_c TYPE TABLE OF ztera_log_trav_m,
+          lt_travel_log_u TYPE TABLE OF ztera_log_trav_m.
 
     IF create-travel IS NOT INITIAL.
       lt_travel_log = CORRESPONDING #( create-travel ).
@@ -22,7 +23,7 @@ CLASS lsc_zi_tera_travel_m IMPLEMENTATION.
         GET TIME STAMP FIELD <fs_travel_log>-created_at.
 
         READ TABLE create-travel ASSIGNING FIELD-SYMBOL(<fs_travel>)
-                    WITH TABLE KEY entity COMPONENTS TravelId = <fs_travel_log>-travel_id.
+                    WITH TABLE KEY entity COMPONENTS TravelId = <fs_travel_log>-travelid.
 
         IF sy-subrc IS INITIAL.
           IF <fs_travel>-%control-BookingFee = cl_abap_behv=>flag_changed.
@@ -51,17 +52,52 @@ CLASS lsc_zi_tera_travel_m IMPLEMENTATION.
 
       ENDLOOP.
 
-      insert ztera_log_trav_m from TABLE lt_travel_log_c.
+      INSERT ztera_log_trav_m FROM TABLE lt_travel_log_c.
 
     ENDIF.
 
-    if update-travel is not initial.
+    IF update-travel IS NOT INITIAL.
+      lt_travel_log = CORRESPONDING #( update-travel ).
+      LOOP AT update-travel ASSIGNING FIELD-SYMBOL(<fs_log_update>).
+        ASSIGN lt_travel_log[ travelid = <fs_log_update>-travelid ] TO FIELD-SYMBOL(<fs_log_u>).
+        <fs_log_u>-changing_operation = 'UPDATE'.
+        GET TIME STAMP FIELD <fs_log_u>-created_at.
+        IF <fs_log_update>-%control-CustomerId = if_abap_behv=>mk-on.
+          <fs_log_u>-changed_value = <fs_log_update>-CustomerId.
+          TRY.
+              <fs_log_u>-change_id = cl_system_uuid=>create_uuid_x16_static(  ).
+            CATCH cx_uuid_error.
+          ENDTRY.
+          <fs_log_u>-changed_field_name = 'Customer_Id'.
+          APPEND <fs_log_u> TO lt_travel_log_u.
+        ENDIF.
+        IF <fs_log_update>-%control-Description = if_abap_behv=>mk-on.
+          <fs_log_u>-changed_value = <fs_log_update>-Description.
+          TRY.
+              <fs_log_u>-change_id = cl_system_uuid=>create_uuid_x16_static(  ).
+            CATCH cx_uuid_error.
+          ENDTRY.
+          <fs_log_u>-changed_field_name = 'Description'.
+          APPEND <fs_log_u> TO lt_travel_log_u.
+        ENDIF.
+      ENDLOOP.
+      INSERT ztera_log_trav_m FROM TABLE lt_travel_log_u.
 
-    endif.
+    ENDIF.
 
-    if delete-travel is not initial.
+    IF delete-travel IS NOT INITIAL.
+      lt_travel_log = CORRESPONDING #( delete-travel ).
+      LOOP AT lt_travel_log ASSIGNING FIELD-SYMBOL(<fs_log_del>).
+        <fs_log_del>-changing_operation = 'DELETE'.
+        GET TIME STAMP FIELD <fs_log_del>-created_at.
+        TRY.
+            <fs_log_del>-change_id = cl_system_uuid=>create_uuid_x16_static(  ).
+          CATCH cx_uuid_error.
 
-    endif.
+        ENDTRY.
+
+      ENDLOOP.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -95,6 +131,8 @@ CLASS lhc_Travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
 
     METHODS validatestatus FOR VALIDATE ON SAVE
       IMPORTING keys FOR travel~validatestatus.
+    METHODS calculatetotalprice FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR travel~calculatetotalprice.
     METHODS earlynumbering_cba_booking FOR NUMBERING
       IMPORTING entities FOR CREATE travel\_booking.
     METHODS earlynumbering_create FOR NUMBERING
@@ -210,6 +248,85 @@ CLASS lhc_Travel IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD recalcTotPrice.
+    TYPES: BEGIN OF ty_total,
+             price TYPE /dmo/total_price,
+             curr  TYPE /dmo/currency_code,
+           END OF ty_total.
+    DATA: lt_total      TYPE TABLE OF ty_total,
+          lv_conv_price TYPE ty_total-price.
+
+    READ ENTITIES OF zi_tera_travel_m IN LOCAL MODE
+    ENTITY Travel
+    FIELDS ( BookingFee CurrencyCode )
+    WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_travel).
+
+
+
+    LOOP AT lt_travel ASSIGNING FIELD-SYMBOL(<fs_travel>).
+
+
+      lt_total =  VALUE #( ( price = <fs_travel>-BookingFee curr = <fs_travel>-CurrencyCode ) ).
+      " Read all associated bookings and add them to the total price.
+      READ ENTITIES OF zi_tera_travel_m IN LOCAL MODE
+         ENTITY Travel BY \_Booking
+         FIELDS ( FlightPrice CurrencyCode )
+         WITH VALUE #( ( %key = <fs_travel>-%key ) )
+         RESULT DATA(lt_booking).
+
+
+      LOOP AT lt_booking ASSIGNING FIELD-SYMBOL(<fs_booking>)
+                                 USING KEY entity
+                                  WHERE TravelId = <fs_travel>-TravelId
+                                  AND CurrencyCode IS NOT INITIAL.
+
+        APPEND VALUE #( price = <fs_booking>-FlightPrice curr = <fs_booking>-CurrencyCode )
+           TO lt_total.
+      ENDLOOP.
+
+      " Read all associated booking supplements and add them to the total price.
+      READ ENTITIES OF zi_tera_travel_m IN LOCAL MODE
+        ENTITY booking BY \_BookingSuppl
+          FIELDS (  price CurrencyCode )
+        WITH VALUE #( FOR rba_booking IN lt_booking ( %tky = rba_booking-%tky ) )
+        RESULT DATA(lt_ba_booksuppl).
+      LOOP AT lt_ba_booksuppl ASSIGNING FIELD-SYMBOL(<fs_booksuppl>)
+                                        " USING KEY entity
+                                        WHERE CurrencyCode IS NOT INITIAL..
+        APPEND VALUE #( price = <fs_booksuppl>-Price curr = <fs_booksuppl>-CurrencyCode )
+         TO lt_total.
+      ENDLOOP.
+
+
+      LOOP AT lt_total ASSIGNING FIELD-SYMBOL(<fs_total>).
+
+        IF <fs_total>-curr = <fs_travel>-CurrencyCode.
+          lv_conv_price = <fs_total>-price.
+        ELSE.
+
+          /dmo/cl_flight_amdp=>convert_currency(
+            EXPORTING
+              iv_amount               = <fs_total>-price
+              iv_currency_code_source = <fs_total>-curr
+              iv_currency_code_target = <fs_travel>-CurrencyCode
+              iv_exchange_rate_date   =  cl_abap_context_info=>get_system_date( )
+            IMPORTING
+              ev_amount               = lv_conv_price
+          ).
+
+        ENDIF.
+
+        <fs_travel>-TotalPrice =  <fs_travel>-TotalPrice + lv_conv_price.
+      ENDLOOP.
+
+
+    ENDLOOP.
+
+    MODIFY ENTITIES OF zi_tera_travel_m IN LOCAL MODE
+    ENTITY Travel
+    UPDATE FIELDS ( TotalPrice )
+    WITH CORRESPONDING #( lt_travel ).
+
   ENDMETHOD.
 
   METHOD rejectTravel.
@@ -366,6 +483,13 @@ CLASS lhc_Travel IMPLEMENTATION.
                         ) TO reported-travel.
       ENDCASE.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD calculateTotalPrice.
+    MODIFY ENTITIES OF zi_tera_travel_m IN LOCAL MODE
+    ENTITY Travel
+    EXECUTE recalcTotPrice
+    FROM CORRESPONDING #( keys ).
   ENDMETHOD.
 
 ENDCLASS.

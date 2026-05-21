@@ -6,6 +6,8 @@ CLASS lhc_booking DEFINITION INHERITING FROM cl_abap_behavior_handler.
       IMPORTING entities FOR CREATE Booking\_Bookingsuppl.
     METHODS get_instance_features FOR INSTANCE FEATURES
       IMPORTING keys REQUEST requested_features FOR Booking RESULT result.
+    METHODS calculatetotalprice FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR booking~calculatetotalprice.
 
 ENDCLASS.
 
@@ -77,6 +79,18 @@ CLASS lhc_booking IMPLEMENTATION.
 
                                                 )
                     ).
+  ENDMETHOD.
+
+  METHOD calculateTotalPrice.
+
+    DATA: lt_travel TYPE TABLE OF zi_tera_travel_m WITH UNIQUE HASHED KEY key COMPONENTS TravelId.
+
+    lt_travel = CORRESPONDING #( keys DISCARDING DUPLICATES MAPPING TravelId = TravelId ) .
+
+    MODIFY ENTITIES OF zi_tera_travel_m
+    ENTITY Travel
+    EXECUTE recalcTotPrice
+    FROM CORRESPONDING #( lt_travel ).
   ENDMETHOD.
 
 ENDCLASS.

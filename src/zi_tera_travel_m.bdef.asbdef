@@ -23,6 +23,7 @@ early numbering
   validation validateStatus on save { create; field OverallStatus; }
   validation validateCurrencyCode on save { create; field CurrencyCode; }
   validation validateBookingFee on save { create; field BookingFee; }
+  determination calculateTotalPrice on modify { create; field BookingFee, CurrencyCode; }
   create;
   update;
   delete;
@@ -60,6 +61,8 @@ early numbering
   field ( readonly ) TravelId, BookingId;
   field ( mandatory ) CarrierId, ConnectionId, FlightDate, BookingStatus;
   field ( mandatory : create, readonly : update ) BookingDate, CustomerId;
+
+  determination calculateTotalPrice on modify { create; field FlightPrice, CurrencyCode; }
   association _Travel;
   association _BookingSuppl { create ( features : instance ); }
   mapping for ztera_booking_m
@@ -90,6 +93,8 @@ early numbering
   update;
   delete;
   field ( readonly ) TravelId, BookingId, BookingSupplementId;
+
+  determination calculateTotalPrice on modify { create; field Price, CurrencyCode; }
   association _Travel;
   association _Booking;
   mapping for ztera_booksupp_m
